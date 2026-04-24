@@ -1,1 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#09090f"/>
+<title>Morning Brief</title>
+<style>
+/* ── reset & base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#09090f;color:#e8e2d9;font-family:Georgia,serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 
+/* ── overlay ── */
+#overlay{
+  position:fixed;inset:0;z-index:999;
+  background:#09090f;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 24px;
+}
+#overlay.hidden{display:none}
+.ov-title{font-size:clamp(38px,11vw,56px);font-weight:700;letter-spacing:-0.03em;color:#f0ece4;line-height:1;text-align:center;margin-bottom:6px}
+.ov-sub{font-size:10px;color:#555;letter-spacing:0.2em;text-align:center;margin-bottom:36px;font-family:'Courier New',monospace}
+.ov-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:28px 22px;width:100%;max-width:400px}
+.ov-label{font-size:13px;color:#e8e2d9;font-weight:bold;margin-bottom:8px}
+.ov-desc{font-size:12px;color:#556;line-height:1.65;margin-bottom:20px}
+.ov-desc a{color:#e8612a;text-decoration:none}
+.ov-input{
+  width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+  color:#f0ece4;border-radius:10px;padding:14px 14px;
+  font-family:'Courier New',monospace;font-size:13px;
+  outline:none;margin-bottom:12px;
+  -webkit-appearance:none;
+}
+.ov-input:focus{border-color:#e8612a}
+.ov-input.err{border-color:#e8612a;animation:shake .3s ease}
+.ov-btn{
+  width:100%;padding:15px;background:#e8612a;color:#09090f;
+  border:none;border-radius:10px;font-size:13px;font-weight:700;
+  letter-spacing:0.08em;font-family:'Courier New',monospace;
+}
+.ov-note{font-size:10px;color:#3a3a4a;margin-top:12px;text-align:center;line-height:1.5;font-family:'Courier New',monospace}
+.ov-err{font-size:11px;color:#e8612a;margin-bottom:8px;min-height:16px;font-family:'Courier New',monospace}
+
+/* ── app ── */
+#app{min-height:100vh;display:flex;flex-direction:column}
+
+/* ── header ── */
+header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 22px;border-bottom:1px solid rgba(255,255,255,0.05);
+  position:sticky;top:0;z-index:10;background:#09090f;
+}
+.dot-live{width:8px;height:8px;border-radius:50%;background:#333;display:inline-block;margin-right:8px;transition:background .3s,box-shadow .3s}
+.dot-live.on{background:#e8612a;box-shadow:0 0 10px #e8612a;animation:blink 1s infinite}
+.hdr-l{display:flex;align-items:center}
+.hdr-label{font-family:'Courier New',monospace;font-size:11px;letter-spacing:.14em;color:#555}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.key-btn{
+  background:none;border:1px solid #2a2a2a;color:#555;border-radius:6px;
+  padding:5px 10px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:.08em;
+  transition:border-color .2s,color .2s;
+}
+.key-btn.ok{border-color:#2d4a2d;color:#4caf50}
+.date-lbl{font-family:'Courier New',monospace;font-size:10px;color:#3a3a4a}
+
+/* ── hero ── */
+.hero{text-align:center;padding:36px 24px 24px;position:relative}
+.hero-glow{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:280px;height:280px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,0.015) 0%,transparent 70%);
+  transition:background 1.2s ease;
+}
+.hero-glow.on{background:radial-gradient(circle,rgba(232,97,42,0.07) 0%,transparent 70%)}
+h1{font-size:clamp(42px,12vw,62px);font-weight:700;letter-spacing:-.03em;line-height:1;color:#f0ece4}
+.hero-tags{font-size:10px;color:#3a3a4a;letter-spacing:.18em;margin-top:10px;font-family:'Courier New',monospace}
+
+/* ── main ── */
+main{flex:1;padding:0 18px 80px;max-width:620px;margin:0 auto;width:100%}
+
+/* ── cards ── */
+.card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.card-label{font-size:9px;color:#444;letter-spacing:.14em;margin-bottom:8px;font-family:'Courier New',monospace}
+
+/* ── schedule ── */
+.sched-row{display:flex;justify-content:space-between;align-items:center}
+.sched-time{font-size:28px;color:#f0ece4;letter-spacing:.04em;font-family:'Courier New',monospace}
+.sched-edit{background:none;border:none;color:#444;font-size:16px;padding:4px 8px;border-radius:6px}
+.sched-edit:active{color:#e8612a}
+#sched-edit-row{display:none;align-items:center;gap:8px;margin-top:8px}
+#sched-edit-row.show{display:flex}
+.sched-input{
+  background:transparent;border:1px solid #e8612a;color:#f0ece4;
+  border-radius:6px;padding:7px 11px;font-family:'Courier New',monospace;font-size:18px;width:110px;
+}
+.sched-save{background:#e8612a;color:#09090f;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;font-family:'Courier New',monospace}
+.sched-cancel{background:transparent;color:#666;border:1px solid #2a2a2a;border-radius:8px;padding:8px 11px;font-size:12px;font-family:'Courier New',monospace}
+.next-lbl{font-size:11px;color:#555;font-family:'Courier New',monospace}
+
+/* ── generate btn ── */
+#gen-btn{
+  width:100%;padding:17px;background:#e8612a;color:#09090f;
+  border:none;border-radius:14px;font-size:14px;font-weight:700;
+  font-family:'Courier New',monospace;letter-spacing:.1em;
+  margin-bottom:14px;transition:opacity .2s;
+}
+#gen-btn:active{opacity:.85}
+#gen-btn:disabled{background:rgba(232,97,42,0.12);color:#e8612a;border:1px solid rgba(232,97,42,0.25)}
+
+/* ── progress ── */
+#prog-card{display:none}
+#prog-card.show{display:block}
+.sec-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sec-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#222;transition:background .3s}
+.sec-dot.active{background:#e8612a;box-shadow:0 0 8px #e8612a;animation:blink .7s infinite}
+.sec-dot.done{background:#3a6b3a;animation:none;box-shadow:none}
+.sec-lbl{font-size:12px;color:#3a3a4a;transition:color .3s;font-family:'Courier New',monospace}
+.sec-lbl.active{color:#e8e2d9}
+.sec-lbl.done{color:#4a5a4a}
+
+/* ── error ── */
+#err-box{display:none;background:rgba(232,97,42,0.08);border:1px solid rgba(232,97,42,0.25);border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:12px;color:#e8612a;font-family:'Courier New',monospace;line-height:1.5}
+#err-box.show{display:block}
+
+/* ── player ── */
+#player{display:none}
+#player.show{display:block;background:rgba(232,97,42,0.04);border:1px solid rgba(232,97,42,0.18);border-radius:20px;padding:22px;margin-bottom:14px}
+.time-row{display:flex;justify-content:space-between;margin-bottom:8px}
+.time-lbl{font-size:11px;color:#666;font-family:'Courier New',monospace}
+.prog-track{height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;margin-bottom:22px}
+.prog-fill{height:100%;background:linear-gradient(90deg,#e8612a,#f0a500);border-radius:99px;width:0%;transition:width .5s ease}
+.controls{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px}
+.btn-stop{width:42px;height:42px;border-radius:50%;background:#1a1a2a;border:none;color:#666;font-size:14px;display:flex;align-items:center;justify-content:center}
+.btn-play{width:64px;height:64px;border-radius:50%;background:#e8612a;border:none;color:#09090f;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(232,97,42,0.35);flex-shrink:0}
+.speeds{display:flex;gap:6px}
+.spd{background:rgba(255,255,255,0.04);border:none;color:#555;border-radius:6px;padding:7px 10px;font-size:11px;font-family:'Courier New',monospace;transition:all .15s}
+.spd.on{background:#e8612a;color:#09090f;font-weight:700}
+.wave{display:flex;align-items:center;justify-content:center;gap:3px;height:28px;margin-bottom:10px}
+.wbar{width:3px;border-radius:99px;background:rgba(255,255,255,0.06);transform-origin:bottom}
+.wbar.on{background:#e8612a;animation:wave var(--d) ease-in-out var(--dl) infinite alternate}
+.play-status{text-align:center;font-size:10px;color:#3a3a4a;letter-spacing:.1em;font-family:'Courier New',monospace}
+
+/* ── script ── */
+#script-wrap{display:none}
+#script-wrap.show{display:block}
+details{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px 18px}
+summary{cursor:pointer;font-size:10px;color:#444;letter-spacing:.12em;user-select:none;list-style:none;font-family:'Courier New',monospace}
+summary::-webkit-details-marker{display:none}
+#script-txt{margin-top:12px;font-size:13px;line-height:1.8;color:#666;max-height:360px;overflow-y:auto;padding-right:4px}
+
+/* ── speed notice ── */
+#spd-notice{display:none;font-size:10px;color:#555;text-align:center;margin-top:-10px;margin-bottom:12px;font-family:'Courier New',monospace}
+#spd-notice.show{display:block}
+
+/* ── animations ── */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes wave{from{transform:scaleY(.15)}to{transform:scaleY(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP OVERLAY ══ -->
+<div id="overlay">
+  <div class="ov-title">Morning<br>Brief</div>
+  <p class="ov-sub">CONFIGURAÇÃO</p>
+  <div class="ov-card">
+    <div class="ov-label">Chave de API Anthropic</div>
+    <div class="ov-desc">
+      Acesse <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>
+      → API Keys → Create Key.<br><br>
+      Salva <strong style="color:#e8e2d9">apenas no seu dispositivo</strong>.
+    </div>
+    <div class="ov-err" id="ov-err"></div>
+    <input type="password" class="ov-input" id="ov-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false"/>
+    <button class="ov-btn" id="ov-save">SALVAR E CONTINUAR</button>
+    <p class="ov-note">A chave nunca sai do seu dispositivo.</p>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <header>
+    <div class="hdr-l">
+      <span class="dot-live" id="air-dot"></span>
+      <span class="hdr-label" id="air-lbl">MORNING BRIEF</span>
+    </div>
+    <div class="hdr-r">
+      <button class="key-btn" id="key-btn">🔑 API</button>
+      <span class="date-lbl" id="date-lbl"></span>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-glow" id="hero-glow"></div>
+    <p style="font-family:'Courier New',monospace;font-size:10px;color:#444;letter-spacing:.2em;margin-bottom:14px">SEU PODCAST EXECUTIVO DIÁRIO</p>
+    <h1>Morning<br>Brief</h1>
+    <p class="hero-tags">NOTÍCIAS · FINANÇAS · LIDERANÇA · M&amp;A</p>
+  </div>
+
+  <main>
+
+    <!-- schedule -->
+    <div class="card">
+      <div class="card-label">AGENDAMENTO AUTOMÁTICO</div>
+      <div class="sched-row">
+        <div>
+          <div id="sched-disp" style="display:flex;align-items:center">
+            <span class="sched-time" id="sched-time-lbl">07:00</span>
+            <button class="sched-edit" id="sched-edit-btn">✎</button>
+          </div>
+          <div id="sched-edit-row">
+            <input type="time" class="sched-input" id="sched-input" value="07:00"/>
+            <button class="sched-save" id="sched-save-btn">OK</button>
+            <button class="sched-cancel" id="sched-cancel-btn">✕</button>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="card-label">PRÓXIMA EDIÇÃO</div>
+          <div class="next-lbl" id="next-lbl"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- generate -->
+    <button id="gen-btn">▶ &nbsp;GERAR EPISÓDIO DE HOJE</button>
+
+    <!-- error -->
+    <div id="err-box"></div>
+
+    <!-- section progress -->
+    <div class="card" id="prog-card">
+      <div class="card-label" style="margin-bottom:12px">COLETANDO CONTEÚDO</div>
+      <div class="sec-row"><div class="sec-dot" id="dot-noticias"></div><span class="sec-lbl" id="lbl-noticias">📰 Principais Notícias</span></div>
+      <div class="sec-row"><div class="sec-dot" id="dot-financas"></div><span class="sec-lbl" id="lbl-financas">💼 Finanças Corporativas</span></div>
+      <div class="sec-row"><div class="sec-dot" id="dot-lideranca"></div><span class="sec-lbl" id="lbl-lideranca">🧠 Liderança &amp; Gestão</span></div>
+      <div class="sec-row"><div class="sec-dot" id="dot-ma"></div><span class="sec-lbl" id="lbl-ma">🤝 M&amp;As no Brasil</span></div>
+      <div class="sec-row" id="dot-script-row" style="display:none">
+        <div class="sec-dot active" id="dot-script"></div>
+        <span class="sec-lbl active">🎙 Escrevendo roteiro...</span>
+      </div>
+    </div>
+
+    <!-- player -->
+    <div id="player">
+      <div class="time-row">
+        <span class="time-lbl" id="elapsed-lbl">00:00</span>
+        <span class="time-lbl" style="color:#333">~ 30:00</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="controls">
+        <button class="btn-stop" id="btn-stop">⏹</button>
+        <button class="btn-play" id="btn-play">▶</button>
+        <div class="speeds">
+          <button class="spd" data-s="0.8">0.8x</button>
+          <button class="spd on" data-s="1">1x</button>
+          <button class="spd" data-s="1.25">1.25x</button>
+          <button class="spd" data-s="1.5">1.5x</button>
+        </div>
+      </div>
+      <div id="spd-notice">⚠ Velocidade alterada — reiniciado do início</div>
+      <div class="wave" id="wave"></div>
+      <p class="play-status" id="play-status">PRONTO PARA REPRODUZIR</p>
+    </div>
+
+    <!-- script preview -->
+    <div id="script-wrap">
+      <details>
+        <summary>VER ROTEIRO COMPLETO ▾</summary>
+        <div id="script-txt"></div>
+      </details>
+    </div>
+
+  </main>
+</div>
+
+<script>
+"use strict";
+
+// ─── CONFIG ───────────────────────────────────────────────────
+const SECTIONS = [
+  { id:"noticias", label:"📰 Principais Notícias",
+    prompt:"Busque as 5 principais notícias do Brasil e do mundo das últimas 24 horas. Seja objetivo e jornalístico. Responda em português brasileiro sem markdown." },
+  { id:"financas", label:"💼 Finanças Corporativas",
+    prompt:"Principais destaques de finanças corporativas, resultados de empresas e mercados das últimas 24 horas no Brasil e no mundo. Responda em português brasileiro sem markdown." },
+  { id:"lideranca", label:"🧠 Liderança & Gestão",
+    prompt:"Insights mais relevantes sobre liderança, gestão e cultura organizacional recentes. Responda em português brasileiro sem markdown." },
+  { id:"ma", label:"🤝 M&As no Brasil",
+    prompt:"Principais movimentos de fusões e aquisições (M&A) recentes no Brasil, com valores, setores e estratégias. Responda em português brasileiro sem markdown." },
+];
+
+// wave bar data — fixed so no random per render
+const WH = [18,45,72,55,30,80,42,90,35,60,48,75,25,85,50,65,38,70,45,88,30,58,42,76,22,60,48,35];
+const WD = [".5s",".7s",".4s",".8s",".6s",".45s",".7s",".5s",".65s",".4s",".75s",".5s",".8s",".45s",".6s",".7s",".5s",".4s",".8s",".55s",".7s",".45s",".6s",".5s",".75s",".4s",".65s",".5s"];
+
+// ─── STATE ────────────────────────────────────────────────────
+let apiKey   = "";
+let phase    = "idle"; // idle | loading | ready | playing | paused
+let speed    = 1;
+let elapsed  = 0;
+let script   = "";
+let schedTid = null;
+let timerTid = null;
+
+// ─── DOM ──────────────────────────────────────────────────────
+// All DOM lookups deferred to after DOM is ready (script is at bottom)
+const el = id => document.getElementById(id);
+
+// ─── UTILS ────────────────────────────────────────────────────
+const pad = n => String(n).padStart(2,"0");
+const fmt = s => pad(Math.floor(s/60))+":"+pad(s%60);
+
+// ─── API ──────────────────────────────────────────────────────
+async function ask(prompt, search=true) {
+  const body = {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1000,
+    messages: [{ role:"user", content:prompt }],
+  };
+  if (search) body.tools = [{ type:"web_search_20250305", name:"web_search" }];
+
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!r.ok) {
+    const d = await r.json().catch(()=>({}));
+    const m = d?.error?.message || "HTTP "+r.status;
+    if (r.status===401) throw new Error("Chave inválida — verifique em 🔑 API.");
+    if (r.status===429) throw new Error("Rate limit — aguarde um momento e tente novamente.");
+    throw new Error("Erro "+r.status+": "+m);
+  }
+
+  const d = await r.json();
+  const text = (d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+  if (!text) throw new Error("Resposta vazia da API.");
+  return text;
+}
+
+// ─── TTS ──────────────────────────────────────────────────────
+const synth = window.speechSynthesis;
+let utt = null;
+
+function ttsVoice() {
+  // returns best pt-BR voice synchronously (voices may already be loaded)
+  const vv = synth.getVoices();
+  return vv.find(v=>v.lang.toLowerCase()==="pt-br")
+      || vv.find(v=>v.lang.toLowerCase().startsWith("pt"))
+      || vv[0]
+      || null;
+}
+
+function ttsSpeak(text, rate, onEnd, onProgress) {
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang  = "pt-BR";
+  u.rate  = rate;
+  u.pitch = 1;
+  const v = ttsVoice();
+  if (v) u.voice = v;
+  u.onboundary = e => onProgress && onProgress(e.charIndex / text.length);
+  u.onend   = () => onEnd && onEnd();
+  u.onerror = e => { if(e.error!=="interrupted"&&e.error!=="canceled") onEnd&&onEnd(); };
+  utt = u;
+  synth.speak(u);
+}
+
+// voices load async on some devices — preload on first interaction
+function preloadVoices() {
+  if (synth.getVoices().length === 0) {
+    synth.addEventListener("voiceschanged", ()=>{}, {once:true});
+  }
+}
+
+// ─── TIMER ────────────────────────────────────────────────────
+function timerStart() {
+  clearInterval(timerTid);
+  timerTid = setInterval(()=>{ elapsed++; el("elapsed-lbl").textContent=fmt(elapsed); }, 1000);
+}
+function timerPause()  { clearInterval(timerTid); }
+function timerReset()  { clearInterval(timerTid); elapsed=0; el("elapsed-lbl").textContent="00:00"; }
+
+// ─── UI STATE MACHINE ─────────────────────────────────────────
+function setState(p) {
+  phase = p;
+  const playing = p==="playing";
+  const paused  = p==="paused";
+  const hasPlay = p==="ready"||playing||paused;
+  const loading = p==="loading";
+
+  // header dot
+  const dot = el("air-dot"), lbl = el("air-lbl");
+  if (playing){ dot.classList.add("on"); lbl.textContent="ON AIR"; }
+  else        { dot.classList.remove("on"); lbl.textContent="MORNING BRIEF"; }
+  el("hero-glow").classList.toggle("on", playing);
+
+  // generate button
+  const gb = el("gen-btn");
+  gb.disabled = loading;
+  gb.textContent = loading ? "⏳  GERANDO EPISÓDIO..." : "▶  GERAR EPISÓDIO DE HOJE";
+
+  // progress card
+  el("prog-card").classList.toggle("show", loading);
+
+  // player + script
+  el("player").classList.toggle("show", hasPlay);
+  el("script-wrap").classList.toggle("show", hasPlay && !!script);
+
+  // play button icon
+  el("btn-play").textContent = playing ? "⏸" : "▶";
+
+  // wave
+  el("wave").querySelectorAll(".wbar").forEach(b=>b.classList.toggle("on", playing));
+
+  // status
+  const st = el("play-status");
+  if (playing)     st.textContent = "▶ REPRODUZINDO";
+  else if (paused) st.textContent = "⏸ PAUSADO";
+  else             st.textContent = "PRONTO PARA REPRODUZIR";
+}
+
+function showErr(msg) {
+  const b = el("err-box");
+  b.textContent = msg;
+  b.classList.add("show");
+}
+function hideErr() { el("err-box").classList.remove("show"); }
+
+function setSection(id, status) {
+  const dot = el("dot-"+id);
+  const lbl = el("lbl-"+id);
+  if (!dot||!lbl) return;
+  const s = SECTIONS.find(s=>s.id===id);
+  dot.clas
